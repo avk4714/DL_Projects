@@ -4,10 +4,10 @@ import numpy as np
 
 # Global variables
 NUM_TRAINING_EPOCHS = 12
-NUM_DATAPOINTS_PER_EPOCH = 50
+NUM_DATAPOINTS_PER_EPOCH = 25
 NUM_TRAJ_SAMPLES = 10
 DELTA_T = 0.05
-rng = np.random.RandomState(12345) #12345
+rng = np.random.RandomState(15448) #12345
 
 # State representation
 # dtheta, dx, theta, x
@@ -126,7 +126,12 @@ def predict_squared_exponential_kernel_t(train_x_t, train_y_t, test_x_t, l_x, si
 
     # Pre-processing
     M = train_x_t.shape[0]
-    H = test_x_t.shape[0]
+    # import pdb; pdb.set_trace()
+    if test_x_t.ndim == 2:
+    	H = test_x_t.shape[0]
+    else:
+    	H = test_x_t.shape[1]
+
     mean = np.zeros((1,1))
     variance = np.zeros((1,1))
 
@@ -199,8 +204,8 @@ def predict_gp(train_x, train_y, init_state, action_traj):
     rollout_gp_trajs = np.zeros((NUM_TRAJ_SAMPLES, NUM_DATAPOINTS_PER_EPOCH, 4))
 
     # Training data extraction
-    train_x_t = np.copy(train_x[-50:,:])
-    train_y_t = np.copy(train_y[-50:,:])
+    train_x_t = np.copy(train_x)
+    train_y_t = np.copy(train_y)
     # M = train_x_t.shape[0]
     # import pdb; pdb.set_trace()
     ## Mean Rollout GP - Implementation
@@ -234,35 +239,40 @@ def predict_gp(train_x, train_y, init_state, action_traj):
         rollout_gp[i,:] = np.copy(state_x)
 
     ## Sampled Rollout GP
-    state_traj_x = np.zeros((NUM_TRAJ_SAMPLES,NUM_DATAPOINTS_PER_EPOCH,4))
+    state_traj_x = np.zeros((NUM_TRAJ_SAMPLES,4))
     aug_traj_x = np.zeros((NUM_TRAJ_SAMPLES,NUM_DATAPOINTS_PER_EPOCH,6))
     # vect_aug_state = np.vectorize(augmented_state)
     # for j in range(NUM_TRAJ_SAMPLES):
-    state_traj_x[:,0,:] = np.copy(init_state)
+    state_traj_x[:,:] = np.copy(init_state)
+    # import pdb; pdb.set_trace()
     for k in range(NUM_DATAPOINTS_PER_EPOCH):
         # Step 1: Augment State
-        aug_traj_x[:,k,:] = augmented_state(state_traj_x[:,k,:],action_traj[k])
+        aug_traj_x[:,k,:] = np.array([augmented_state(state_traj_xi,action_traj[k]) for state_traj_xi in state_traj_x[:,:]])
+        # import pdb; pdb.set_trace()
         # Step 2a: State 1 training
         pred_gp_mean_trajs[:,k,0], pred_gp_variance_trajs[:,k,0] = np.asarray(predict_squared_exponential_kernel_t(
-        train_x_t, train_y_t[:,0], aug_traj_x[:,k,:], kernel_length_scales[:,0].reshape((6,1)), kernel_scale_factors[0], noise_sigmas[0]))[:,k]
+        train_x_t, train_y_t[:,0], aug_traj_x[:,k,:], kernel_length_scales[:,0].reshape((6,1)), kernel_scale_factors[0], noise_sigmas[0]))
 
         # Step 2b: State 2 training
         pred_gp_mean_trajs[:,k,1], pred_gp_variance_trajs[:,k,1] = np.asarray(predict_squared_exponential_kernel_t(
-        train_x_t, train_y_t[:,1], aug_traj_x[:,k,:], kernel_length_scales[:,1].reshape((6,1)), kernel_scale_factors[1], noise_sigmas[1]))[:,k]
+        train_x_t, train_y_t[:,1], aug_traj_x[:,k,:], kernel_length_scales[:,1].reshape((6,1)), kernel_scale_factors[1], noise_sigmas[1]))
 
         # Step 2c: State 3 training
         pred_gp_mean_trajs[:,k,2], pred_gp_variance_trajs[:,k,2] = np.asarray(predict_squared_exponential_kernel_t(
-        train_x_t, train_y_t[:,2], aug_traj_x[:,k,:], kernel_length_scales[:,2].reshape((6,1)), kernel_scale_factors[2], noise_sigmas[2]))[:,k]
+        train_x_t, train_y_t[:,2], aug_traj_x[:,k,:], kernel_length_scales[:,2].reshape((6,1)), kernel_scale_factors[2], noise_sigmas[2]))
 
         # Step 2d: State 4 training
         pred_gp_mean_trajs[:,k,3], pred_gp_variance_trajs[:,k,3] = np.asarray(predict_squared_exponential_kernel_t(
-        train_x_t, train_y_t[:,3], aug_traj_x[:,k,:], kernel_length_scales[:,3].reshape((6,1)), kernel_scale_factors[3], noise_sigmas[3]))[:,k]
+        train_x_t, train_y_t[:,3], aug_traj_x[:,k,:], kernel_length_scales[:,3].reshape((6,1)), kernel_scale_factors[3], noise_sigmas[3]))
 
         # Step 3: Gaussian Sampling
-        sample_gp = rng.normal(pred_gp_mean_trajs[:,k,:],np.abs(np.sqrt(pred_gp_variance_trajs[:,k,:])))
+        sample_gp = rng.normal(pred_gp_mean_trajs[:,k,:],np.sqrt(np.abs(pred_gp_variance_trajs[:,k,:])))
         # Step 4: State Update
-        state_traj_x[:,k,:] += sample_gp[:,k]
+        
+        state_traj_x += sample_gp
+        # import pdb; pdb.set_trace()
         rollout_gp_trajs[:,k,:] = np.copy(state_traj_x)
+        # import pdb; pdb.set_trace()
 
     return pred_gp_mean, pred_gp_variance, rollout_gp, pred_gp_mean_trajs, pred_gp_variance_trajs, rollout_gp_trajs
 
