@@ -4,10 +4,10 @@ import numpy as np
 
 # Global variables
 NUM_TRAINING_EPOCHS = 12
-NUM_DATAPOINTS_PER_EPOCH = 25
+NUM_DATAPOINTS_PER_EPOCH = 50
 NUM_TRAJ_SAMPLES = 10
 DELTA_T = 0.05
-rng = np.random.RandomState(15448) #12345
+rng = np.random.RandomState(54454) #12345
 
 # State representation
 # dtheta, dx, theta, x
@@ -129,11 +129,13 @@ def predict_squared_exponential_kernel_t(train_x_t, train_y_t, test_x_t, l_x, si
     # import pdb; pdb.set_trace()
     if test_x_t.ndim == 2:
     	H = test_x_t.shape[0]
+    elif test_x_t.ndim == 1:
+    	H = 1
     else:
     	H = test_x_t.shape[1]
 
-    mean = np.zeros((1,1))
-    variance = np.zeros((1,1))
+    mean = np.zeros((H,1))
+    variance = np.zeros((H,1))
 
     # Step 1: Calculate p_var = K + sigma_n^2*I
     K = np.zeros((M,M))
@@ -155,6 +157,7 @@ def predict_squared_exponential_kernel_t(train_x_t, train_y_t, test_x_t, l_x, si
     k_ss = squared_exponential_kernel_t(test_x_t, test_x_t, l_x ,sigma_f_x)
     tmpvar = k_ss - k_s.T.dot(p_var_inv).dot(k_s)
     variance = tmpvar.diagonal()
+    # import pdb; pdb.set_trace()
 
     return mean, variance
 
