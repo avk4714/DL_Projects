@@ -1,12 +1,13 @@
 # Run this script to generate training data for the cartpole dynamics learning.
 import numpy as np
+import random
 
 # Global Variables
 NUM_TRAINING_EPOCHS = 12
 NUM_DATAPOINTS_PER_EPOCH = 50
 NUM_TRAJ_SAMPLES = 10
 DELTA_T = 0.05
-rng = np.random.RandomState(54454) #12345
+# rng = np.random.RandomState(54454) #12345
 
 # Function Definitions
 def sim_rollout(sim, policy, n_steps, dt, init_state):
@@ -64,23 +65,47 @@ if __name__ == '__main__':
     import cv2
     import csv
 
+    # Getting policy for dynamics and initializing simulator
     swingup_policy = SwingUpAndBalancePolicy('policy.npz')
-    random_policy = RandomPolicy(seed=12831)
     sim = CartpoleSim(dt=DELTA_T)
 
-    # Initial training data used to train GP for the first epoch
-    init_state = np.array([0.01, 0.01, np.pi * 0.5, 0.1]) * rng.randn(4)
-    ts, state_traj, action_traj = sim_rollout(sim, random_policy, NUM_DATAPOINTS_PER_EPOCH, DELTA_T, init_state)
-    delta_state_traj = state_traj[1:] - state_traj[:-1]
-    train_x, train_y = make_training_data(state_traj[:-1], action_traj, delta_state_traj)
+    '''
+    Number of training sets of NUM_DATAPOINTS_PER_EPOCH each to generate. You
+    can change this value to generate NUM_TRAIN_DATASETS * NUM_DATAPOINTS_PER_EPOCH
+    sized datasets.
+    '''
+    NUM_TRAIN_DATASETS = 100
+
+    # Loop to simulate the cartpole dynamics with different initial state
+    # conditions.
+    for i in range(NUM_TRAIN_DATASETS):
+        random_policy = RandomPolicy(seed=np.random.randint(12121,64923))
+        rng = np.random.RandomState(np.random.randint(12121,64923))
+        # Setting for random policy to generate training data
+        # Every 5th dataset is SwingUp Policy
+        if (i + 1) % 5 == 0:
+            policy = swingup_policy
+            init_state = np.array([0.01, 0.01, 0.05, 0.05]) * rng.randn(4)
+        else:
+            policy = random_policy
+            init_state = np.array([0.01, 0.01, np.pi * 0.5, 0.1]) * rng.randn(4)
+        ts, state_traj, action_traj = sim_rollout(sim, random_policy, NUM_DATAPOINTS_PER_EPOCH, DELTA_T, init_state)
+        delta_state_traj = state_traj[1:] - state_traj[:-1]
+        train_x, train_y = make_training_data(state_traj[:-1], action_traj, delta_state_traj)
+        if i == 0:
+            train_x_full = train_x
+            train_y_full = train_y
+        else:
+            train_x_full = np.append(train_x_full,train_x,axis=0)
+            train_y_full = np.append(train_y_full,train_y,axis=0)
 
     # Writing data to CSV
-    with open('train_x_data.csv', mode='w') as train_x_dat:
+    with open('train_x_data_2.csv', mode='w') as train_x_dat:
         train_x_writer = csv.writer(train_x_dat, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        for i in range(50):
-            train_x_writer.writerow(train_x[i,:])
+        for i in range(NUM_TRAIN_DATASETS * NUM_DATAPOINTS_PER_EPOCH):
+            train_x_writer.writerow(train_x_full[i,:])
 
-    with open('train_y_data.csv', mode='w') as train_y_dat:
+    with open('train_y_data_2.csv', mode='w') as train_y_dat:
         train_y_writer = csv.writer(train_y_dat, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        for i in range(50):
-            train_y_writer.writerow(train_y[i,:])
+        for i in range(NUM_TRAIN_DATASETS * NUM_DATAPOINTS_PER_EPOCH):
+            train_y_writer.writerow(train_y_full[i,:])
