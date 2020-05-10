@@ -104,6 +104,7 @@ if __name__ == '__main__':
     lam_mult = 1e-2
     d_in = 6            # Inputs are: [p, dp, dtheta, sin(theta), cos(theta), action]
     d_out = 4           # Outputs are: [ddtheta, ddp, dtheta, dp]
+    NUM_MODEL_ITERATIONS = 50
     model = Net(d_in, n_hidden, d_out, z_prob, lam_mult)
     PATH = 'cartpole_ReLU.pth'
     model.load_state_dict(torch.load(PATH))
@@ -127,65 +128,71 @@ if __name__ == '__main__':
         
         for j in range(NUM_DATAPOINTS_PER_EPOCH):
             if j == 0:
-                pred_state_traj = init_state.reshape(4,1)
-                pred_state = init_state.reshape(4,1)
-            else:
+                pred_state_traj = init_state.reshape(1,4)
+                pred_state = init_state.reshape(1,4)
             	# import pdb; pdb.set_trace()
-            	pred_state_traj = np.append(pred_state_traj,pred_state.reshape(4,1),axis=1)
+            	# pred_state_traj = np.append(pred_state_traj,pred_state.reshape(1,4),axis=0)
 
             # import pdb; pdb.set_trace()
-            aug_state = augmented_state(pred_state_traj[:,j], action_traj[j])
+            aug_state = augmented_state(pred_state_traj[j,:], action_traj[j])
             # import pdb; pdb.set_trace()
             aug_state_tnsr = Variable(torch.from_numpy(aug_state))
             # import pdb; pdb.set_trace()
 
             # Run through the model
+            
             pred_state_delta = model(aug_state_tnsr.float()).detach().numpy()
-            pred_state_delta = pred_state_delta.reshape(4,1)
+
+            # tot_pred_state_delta = tot_pred_state_delta.reshape(NUM_MODEL_ITERATIONS,4)
+            # Calculate mean and variance of the predicted states
+            # import pdb; pdb.set_trace()
+            pred_state_delta = pred_state_delta.reshape(1,4)
             # import pdb; pdb.set_trace()
 
             # State update
             pred_state = np.add(pred_state,pred_state_delta)
 
+            pred_state_traj = np.append(pred_state_traj,pred_state.reshape(1,4),axis=0)
+
         dnn_state_traj = np.copy(pred_state_traj)
         dnn_delta_state_traj = dnn_state_traj[1:] - dnn_state_traj[:-1]
-
-        # Plot Training Y and Predicted Y
-        t_vec = np.arange(0.0,(NUM_DATAPOINTS_PER_EPOCH + 1) * DELTA_T,DELTA_T)
         # import pdb; pdb.set_trace()
-        plt.plot(t_vec,state_traj[:,2])
-        plt.plot(t_vec[:-1],dnn_state_traj.T[:,2],'--')
-        plt.grid()
-        # plt.ylim((-10,10))
-        # plt.xlim((-10,10))
-        plt.savefig("test_comparison_3.png")
+        # Plot Training Y and Predicted Y
+        # t_vec = np.arange(0.0,(NUM_DATAPOINTS_PER_EPOCH + 1) * DELTA_T,DELTA_T)
+        # # import pdb; pdb.set_trace()
+        # plt.plot(t_vec,state_traj[:,2])
+        # plt.plot(t_vec[:-1],dnn_state_traj.T[:,2],'--')
+        # plt.grid()
+        # # plt.ylim((-10,10))
+        # # plt.xlim((-10,10))
+        # plt.savefig("test_comparison_3.png")
         # plt.show()
-        # for i in range(len(state_traj) - 1):
-        #     vis.set_gt_cartpole_state(state_traj[i][3], state_traj[i][2])
-        #     vis.set_gt_delta_state_trajectory(ts[:i+1], delta_state_traj[:i+1])
+        for i in range(len(state_traj) - 1):
+            vis.set_gt_cartpole_state(state_traj[i][3], state_traj[i][2])
+            vis.set_gt_delta_state_trajectory(ts[:i+1], delta_state_traj[:i+1])
 
-        #     vis.set_gt_cartpole_state(dnn_state_traj[i][3], dnn_state_traj[i][2])
-        #     vis.set_gt_delta_state_trajectory(ts[:i+1], dnn_delta_state_traj[:i+1])
+            vis.set_dnn_cartpole_state(dnn_state_traj[i][3], dnn_state_traj[i][2])
+            vis.set_dnn_delta_state_trajectory(ts[:i+1], dnn_delta_state_traj[:i+1])
 
-        #     if policy == swingup_policy:
-        #         policy_type = 'swing up'
-        #     else:
-        #         policy_type = 'random'
+            if policy == swingup_policy:
+                policy_type = 'swing up'
+            else:
+                policy_type = 'random'
 
-        #     vis.set_info_text('epoch: %d\npolicy: %s' % (epoch, policy_type))
+            vis.set_info_text('epoch: %d\npolicy: %s' % (epoch, policy_type))
 
-        #     vis_img = vis.draw(redraw=(i==0))
-        #     cv2.imshow('vis', vis_img)
+            vis_img = vis.draw(redraw=(i==0))
+            cv2.imshow('vis', vis_img)
 
-        #     if epoch == 0 and i == 0:
-        #         # First frame
-        #         video_out = cv2.VideoWriter('cartpole.mp4',
-        #                                     cv2.VideoWriter_fourcc('m', 'p', '4', 'v'),
-        #                                     int(1.0 / DELTA_T),
-        #                                     (vis_img.shape[1], vis_img.shape[0]))
+            if epoch == 0 and i == 0:
+                # First frame
+                video_out = cv2.VideoWriter('cartpole_dnn.mp4',
+                                            cv2.VideoWriter_fourcc('m', 'p', '4', 'v'),
+                                            int(1.0 / DELTA_T),
+                                            (vis_img.shape[1], vis_img.shape[0]))
 
-        #     video_out.write(vis_img)
-        #     cv2.waitKey(int(1000 * DELTA_T))
+            video_out.write(vis_img)
+            cv2.waitKey(int(1000 * DELTA_T))
 
         # Augment training data
         # new_train_x, new_train_y = make_training_data(state_traj[:-1], action_traj, delta_state_traj)

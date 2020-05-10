@@ -428,6 +428,9 @@ class Visualizer(object):
     def set_gt_cartpole_state(self, x, theta):
         self.cartpole_states['gt'] = (x, theta)
 
+    def set_dnn_cartpole_state(self, x, theta):
+        self.cartpole_states['dnn'] = (x, theta)
+
     def set_gp_cartpole_state(self, x, theta):
         self.cartpole_states['gp'] = (x, theta)
 
@@ -440,6 +443,9 @@ class Visualizer(object):
     def set_gp_delta_state_trajectory(self, ts, traj, variances):
         self.delta_state_trajs['gp'] = np.concatenate([ts[:, None], traj, variances], axis=1)
 
+    def set_dnn_delta_state_trajectory(self, ts, traj):
+        self.delta_state_trajs['dnn'] = np.concatenate([ts[:, None], traj], axis=1)
+
     def set_control(self, u):
         self.control = u
 
@@ -450,17 +456,22 @@ class Visualizer(object):
         x, theta = self.cartpole_states['gt']
         gt_cartpole = cv2.cvtColor(self.cartpole_vis_gt.draw_cartpole('', x, theta), cv2.COLOR_RGB2BGR)
 
-        x, theta = self.cartpole_states['gp']
-        xs, thetas = self.cartpole_states['gp-rollout']
-        xs = np.append(xs, x)
-        thetas = np.append(thetas, theta)
+        # x, theta = self.cartpole_states['gp']
+        # xs, thetas = self.cartpole_states['gp-rollout']
+        # xs = np.append(xs, x)
+        # thetas = np.append(thetas, theta)
 
-        names = ['gp-%d' % _ for _ in range(len(xs))]
-        alphas = [0.3 for _ in range(len(xs))]
-        alphas[-1] = 1.0
+        x, theta = self.cartpole_states['dnn']
 
-        gp_cartpole = cv2.cvtColor(self.cartpole_vis_gp.draw_cartpole_batch(names, xs, thetas, alphas),
-                                   cv2.COLOR_RGB2BGR)
+
+        # names = ['gp-%d' % _ for _ in range(len(xs))]
+        # alphas = [0.3 for _ in range(len(xs))]
+        # alphas[-1] = 1.0
+
+        # gp_cartpole = cv2.cvtColor(self.cartpole_vis_gp.draw_cartpole_batch(names, xs, thetas, alphas),
+                                   # cv2.COLOR_RGB2BGR)
+
+        dnn_cartpole = cv2.cvtColor(self.cartpole_vis_gt.draw_cartpole('', x, theta), cv2.COLOR_RGB2BGR)
 
         ts, ddthetas, ddxs, dthetas, dxs = zip(*self.delta_state_trajs['gt'])
 
@@ -468,15 +479,21 @@ class Visualizer(object):
         for idx, data in enumerate((dxs, ddxs, dthetas, ddthetas)):
             gt_handles.append(self.plotters[idx].plot('gt', ts, data, 'g', linewidth=1, alpha=0.8))
 
-        ts, ddthetas, ddxs, dthetas, dxs, ddtheta_var, ddx_var, dtheta_var, dx_var = zip(*self.delta_state_trajs['gp'])
-        vars = dx_var, ddx_var, dtheta_var, ddtheta_var
-        gp_handles = []
-        for idx, data in enumerate((dxs, ddxs, dthetas, ddthetas)):
-            gp_handles.append(self.plotters[idx].plot_with_errorbar('gp', ts, data, np.sqrt(vars[idx]) * 3,
-                              color='r', capsize=3, capthick=0.5, elinewidth=1, linewidth=1, alpha=0.8))
+        ts, ddthetas, ddxs, dthetas, dxs = zip(*self.delta_state_trajs['dnn'])
 
+        dnn_handles = []
+        for idx, data in enumerate((dxs, ddxs, dthetas, ddthetas)):
+            dnn_handles.append(self.plotters[idx].plot('dnn', ts, data, 'r', linewidth=1, alpha=0.8))
+
+        '''ts, ddthetas, ddxs, dthetas, dxs, ddtheta_var, ddx_var, dtheta_var, dx_var = zip(*self.delta_state_trajs['gp'])
+                                vars = dx_var, ddx_var, dtheta_var, ddtheta_var
+                                gp_handles = []
+                                for idx, data in enumerate((dxs, ddxs, dthetas, ddthetas)):
+                                    gp_handles.append(self.plotters[idx].plot_with_errorbar('gp', ts, data, np.sqrt(vars[idx]) * 3,
+                                                      color='r', capsize=3, capthick=0.5, elinewidth=1, linewidth=1, alpha=0.8))'''
+        # import pdb; pdb.set_trace()                                              
         if redraw:
-            self.legend = self.axs[-1].legend([gt_handles[-1], gp_handles[-1]], ['Full-Dynamics', 'GP-Dynamics'],
+            self.legend = self.axs[-1].legend([gt_handles[-1], dnn_handles[-1]], ['Full-Dynamics', 'DNN-Dynamics'],
                                              loc='upper center', bbox_to_anchor=(0.5, -0.4), ncol=2, fancybox=False)
             self.fig.canvas.draw()
         else:
@@ -484,7 +501,7 @@ class Visualizer(object):
 
         plot_img = cv2.cvtColor(self._get_plot_image(), cv2.COLOR_RGB2BGR)
         text_info = self.info_panel.draw_text('info', 0.0, 1.0, self.info_text, fontsize=12, verticalalignment='top')
-        vis_img = HStack(VStack(gt_cartpole, gp_cartpole, text_info), plot_img)
+        vis_img = HStack(VStack(gt_cartpole, dnn_cartpole, text_info), plot_img)
 
         return vis_img
 
