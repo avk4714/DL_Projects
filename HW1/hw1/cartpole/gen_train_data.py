@@ -83,13 +83,13 @@ if __name__ == '__main__':
         rng = np.random.RandomState(np.random.randint(12121,64923))
         # Setting for random policy to generate training data
         # Every 5th dataset is SwingUp Policy
-        if (i + 1) % 5 == 0:
+        if (i + 1) % 2 == 0:
             policy = swingup_policy
             init_state = np.array([0.01, 0.01, 0.05, 0.05]) * rng.randn(4)
         else:
             policy = random_policy
             init_state = np.array([0.01, 0.01, np.pi * 0.5, 0.1]) * rng.randn(4)
-        ts, state_traj, action_traj = sim_rollout(sim, random_policy, NUM_DATAPOINTS_PER_EPOCH, DELTA_T, init_state)
+        ts, state_traj, action_traj = sim_rollout(sim, policy, NUM_DATAPOINTS_PER_EPOCH, DELTA_T, init_state)
         delta_state_traj = state_traj[1:] - state_traj[:-1]
         train_x, train_y = make_training_data(state_traj[:-1], action_traj, delta_state_traj)
         if i == 0:
@@ -100,12 +100,12 @@ if __name__ == '__main__':
             train_y_full = np.append(train_y_full,train_y,axis=0)
 
     # Writing data to CSV
-    with open('train_x_data_2.csv', mode='w') as train_x_dat:
+    with open('train_x_data_4.csv', mode='w') as train_x_dat:
         train_x_writer = csv.writer(train_x_dat, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         for i in range(NUM_TRAIN_DATASETS * NUM_DATAPOINTS_PER_EPOCH):
             train_x_writer.writerow(train_x_full[i,:])
 
-    with open('train_y_data_2.csv', mode='w') as train_y_dat:
+    with open('train_y_data_4.csv', mode='w') as train_y_dat:
         train_y_writer = csv.writer(train_y_dat, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         for i in range(NUM_TRAIN_DATASETS * NUM_DATAPOINTS_PER_EPOCH):
             train_y_writer.writerow(train_y_full[i,:])

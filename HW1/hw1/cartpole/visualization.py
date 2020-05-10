@@ -405,6 +405,8 @@ class Visualizer(object):
 
         self.cartpole_vis_gt = CartpoleVisualizer(
             pole_length=cartpole_length, title='Full-Dynamics Prediction', figsize=(4, 3))
+        self.cartpole_vis_dnn = CartpoleVisualizer(
+            pole_length=cartpole_length, title='DNN-Dynamics Prediction', figsize=(4, 3))
         self.cartpole_vis_gp = CartpoleVisualizer(
             pole_length=cartpole_length, title='GP-Dynamics Prediction', figsize=(4, 3))
 
@@ -443,8 +445,11 @@ class Visualizer(object):
     def set_gp_delta_state_trajectory(self, ts, traj, variances):
         self.delta_state_trajs['gp'] = np.concatenate([ts[:, None], traj, variances], axis=1)
 
-    def set_dnn_delta_state_trajectory(self, ts, traj):
-        self.delta_state_trajs['dnn'] = np.concatenate([ts[:, None], traj], axis=1)
+    # def set_dnn_delta_state_trajectory(self, ts, traj):
+    #     self.delta_state_trajs['dnn'] = np.concatenate([ts[:, None], traj], axis=1)
+
+    def set_dnn_delta_state_trajectory(self, ts, traj, variances):
+        self.delta_state_trajs['dnn'] = np.concatenate([ts[:, None], traj, variances], axis=1)
 
     def set_control(self, u):
         self.control = u
@@ -471,7 +476,7 @@ class Visualizer(object):
         # gp_cartpole = cv2.cvtColor(self.cartpole_vis_gp.draw_cartpole_batch(names, xs, thetas, alphas),
                                    # cv2.COLOR_RGB2BGR)
 
-        dnn_cartpole = cv2.cvtColor(self.cartpole_vis_gt.draw_cartpole('', x, theta), cv2.COLOR_RGB2BGR)
+        dnn_cartpole = cv2.cvtColor(self.cartpole_vis_dnn.draw_cartpole('', x, theta), cv2.COLOR_RGB2BGR)
 
         ts, ddthetas, ddxs, dthetas, dxs = zip(*self.delta_state_trajs['gt'])
 
@@ -479,11 +484,18 @@ class Visualizer(object):
         for idx, data in enumerate((dxs, ddxs, dthetas, ddthetas)):
             gt_handles.append(self.plotters[idx].plot('gt', ts, data, 'g', linewidth=1, alpha=0.8))
 
-        ts, ddthetas, ddxs, dthetas, dxs = zip(*self.delta_state_trajs['dnn'])
+        # ts, ddthetas, ddxs, dthetas, dxs = zip(*self.delta_state_trajs['dnn'])
 
+        # dnn_handles = []
+        # for idx, data in enumerate((dxs, ddxs, dthetas, ddthetas)):
+        #     dnn_handles.append(self.plotters[idx].plot('dnn', ts, data, 'r', linewidth=1, alpha=0.8))
+
+        ts, ddthetas, ddxs, dthetas, dxs, ddtheta_var, ddx_var, dtheta_var, dx_var = zip(*self.delta_state_trajs['dnn'])
+        vars = dx_var, ddx_var, dtheta_var, ddtheta_var
         dnn_handles = []
         for idx, data in enumerate((dxs, ddxs, dthetas, ddthetas)):
-            dnn_handles.append(self.plotters[idx].plot('dnn', ts, data, 'r', linewidth=1, alpha=0.8))
+            dnn_handles.append(self.plotters[idx].plot_with_errorbar('dnn', ts, data, np.sqrt(vars[idx]) * 3,
+                color='r', capsize=3, capthick=0.5, elinewidth=1, linewidth=1, alpha=0.8))
 
         '''ts, ddthetas, ddxs, dthetas, dxs, ddtheta_var, ddx_var, dtheta_var, dx_var = zip(*self.delta_state_trajs['gp'])
                                 vars = dx_var, ddx_var, dtheta_var, ddtheta_var
