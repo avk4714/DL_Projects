@@ -107,7 +107,7 @@ if __name__ == '__main__':
     NUM_MODEL_ITERATIONS = 50
 
     model = Net(d_in, n_hidden, d_out, z_prob, lam_mult)
-    PATH = 'cartpole_ReLU_6.pth'
+    PATH = 'cartpole_ReLU_7.pth'
     model.load_state_dict(torch.load(PATH))
     model.eval()
 
@@ -200,7 +200,7 @@ if __name__ == '__main__':
 
             if epoch == 0 and i == 0:
                 # First frame
-                video_out = cv2.VideoWriter('cartpole_dnn_5.mp4',
+                video_out = cv2.VideoWriter('cartpole_dnn_7.mp4',
                                             cv2.VideoWriter_fourcc('m', 'p', '4', 'v'),
                                             int(1.0 / DELTA_T),
                                             (vis_img.shape[1], vis_img.shape[0]))
